@@ -1,11 +1,23 @@
 # POS Inventory Management System
 
-Flask-based POS and Inventory Management System for Final Year Project.
+A Flask-based POS and Inventory Management System developed for Database Project.
 
 ## Features
-- Inventory Management
-- Sales System
-- Billing
-- Reports
-- Authentication
+- User Authentication
+- Product Management
+- Inventory Tracking
+- Sales and Billing
+- Reports Dashboard
+
+## Technologies Used
+- Python
+- Flask
+- SQLAlchemy
+- HTML/CSS
+- Bootstrap
+- MySQL
+
+## Author
+Abbas Ahmed
+Ahmed Bilal
 
