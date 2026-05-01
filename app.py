@@ -1,9 +1,9 @@
-#python
 from flask import Flask, render_template, redirect, url_for, request, flash, session
 from flask_mysqldb import MySQL
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import os
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -122,6 +122,85 @@ def setup():
     return render_template('setup.html')
 
 
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    cur = mysql.connection.cursor()
+    today = datetime.now().date()
+
+    cur.execute(
+        "SELECT COUNT(*) as cnt, IFNULL(SUM(total),0) as revenue "
+        "FROM sales WHERE DATE(created_at)=%s AND status='completed'",
+        (today,)
+    )
+    today_stats = cur.fetchone()
+
+    cur.execute("SELECT COUNT(*) as cnt FROM products WHERE is_active=1")
+    product_count = cur.fetchone()
+
+    cur.execute(
+        "SELECT COUNT(*) as cnt FROM products "
+        "WHERE stock_quantity <= low_stock_threshold AND is_active=1"
+    )
+    low_stock = cur.fetchone()
+
+    cur.execute("SELECT COUNT(*) as cnt FROM users WHERE is_active=1")
+    user_count = cur.fetchone()
+
+    cur.execute("""
+        SELECT s.*, u.full_name as cashier_name
+        FROM sales s
+        JOIN users u ON s.cashier_id = u.id
+        ORDER BY s.created_at DESC
+        LIMIT 8
+    """)
+    recent_sales = cur.fetchall()
+
+    weekly = []
+
+    for i in range(6, -1, -1):
+        d = today - timedelta(days=i)
+
+        cur.execute(
+            "SELECT IFNULL(SUM(total),0) as rev "
+            "FROM sales WHERE DATE(created_at)=%s AND status='completed'",
+            (d,)
+        )
+
+        r = cur.fetchone()
+
+        weekly.append({
+            'date': d.strftime('%a'),
+            'revenue': float(r['rev'])
+        })
+
+    cur.execute("""
+        SELECT p.name, SUM(si.quantity) as sold
+        FROM sale_items si
+        JOIN products p ON si.product_id = p.id
+        JOIN sales s ON si.sale_id = s.id
+        WHERE s.status = 'completed'
+        GROUP BY si.product_id
+        ORDER BY sold DESC
+        LIMIT 5
+    """)
+
+    top_products = cur.fetchall()
+
+    cur.close()
+
+    return render_template(
+        'dashboard.html',
+        today_stats=today_stats,
+        product_count=product_count,
+        low_stock=low_stock,
+        user_count=user_count,
+        recent_sales=recent_sales,
+        weekly=weekly,
+        top_products=top_products
+    )
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
-#```
+
