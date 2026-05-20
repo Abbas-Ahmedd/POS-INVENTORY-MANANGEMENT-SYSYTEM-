@@ -1,4 +1,4 @@
-# NexaPOS — Point of Sale & Inventory Management System
+# SpectrePOS — Point of Sale & Inventory Management System
 
 A full-featured POS and Inventory Management web application built with Flask, Bootstrap 5, and MySQL.
 
