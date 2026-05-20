@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block auth_content %}
+<div class="login-page">
+    <div class="login-card">
+        <div class="login-brand">
+            <div class="login-logo"><i class="fas fa-gear"></i></div>
+            <h1>Initial Setup</h1>
+            <p>Create your admin account</p>
+        </div>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}{% for cat, msg in messages %}
+        <div class="alert alert-{{ cat }} mb-3">{{ msg }}</div>
+        {% endfor %}{% endif %}
+        {% endwith %}
+        <form method="POST">
+            <div class="mb-3">
+                <label class="form-label">Full Name</label>
+                <input type="text" name="full_name" class="form-control" placeholder="Administrator" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Username</label>
+                <input type="text" name="username" class="form-control" placeholder="admin" required>
+            </div>
+            <div class="mb-4">
+                <label class="form-label">Password</label>
+                <input type="password" name="password" class="form-control" placeholder="Choose a strong password" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-login">Create Admin Account</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

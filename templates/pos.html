@@ -1,0 +1,310 @@
+{% extends 'base.html' %}
+{% block title %}POS Terminal{% endblock %}
+{% block page_title %}POS Terminal{% endblock %}
+{% block content %}
+<div class="pos-layout">
+    <!-- Left: Products -->
+    <div class="pos-left">
+        <div class="pos-search-bar">
+            <input type="text" id="searchInput" class="form-control" placeholder="Search products by name or SKU..." oninput="filterProducts()">
+            <select id="taxSelect" class="form-select" style="width:140px;">
+                <option value="0">No Tax</option>
+                <option value="5">Tax 5%</option>
+                <option value="10">Tax 10%</option>
+                <option value="17">GST 17%</option>
+            </select>
+        </div>
+        <div class="category-tabs">
+            <div class="cat-tab active" onclick="filterCategory('', this)">All</div>
+            {% for cat in categories %}
+            <div class="cat-tab" onclick="filterCategory('{{ cat.id }}', this)">{{ cat.name }}</div>
+            {% endfor %}
+        </div>
+        <div class="product-grid" id="productGrid">
+            <div class="no-products"><i class="fas fa-spinner fa-spin"></i><br>Loading products...</div>
+        </div>
+    </div>
+    <!-- Right: Cart -->
+    <div class="pos-right">
+        <div class="cart-header">
+            <span><i class="fas fa-shopping-cart me-2" style="color:var(--primary)"></i>Cart</span>
+            <button class="btn-clear-cart" onclick="clearCart()"><i class="fas fa-trash-can me-1"></i>Clear</button>
+        </div>
+        <div class="cart-items" id="cartItems">
+            <div class="cart-empty"><i class="fas fa-cart-shopping"></i><br>Cart is empty<br><small>Click products to add them</small></div>
+        </div>
+        <div class="cart-summary">
+            <div class="cart-row"><span>Subtotal</span><span id="subtotalDisplay">PKR 0.00</span></div>
+            <div class="cart-row">
+                <span>Discount (PKR)</span>
+                <input type="number" id="discountInput" class="form-control form-control-sm" style="width:90px;text-align:right;" value="0" min="0" oninput="updateTotals()">
+            </div>
+            <div class="cart-row"><span>Tax</span><span id="taxDisplay">PKR 0.00</span></div>
+            <div class="cart-total-row"><span>TOTAL</span><span id="totalDisplay">PKR 0.00</span></div>
+            <button class="btn btn-primary btn-checkout" onclick="openPayment()" id="checkoutBtn" disabled>
+                <i class="fas fa-cash-register me-2"></i>Proceed to Payment
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Modal -->
+<div class="modal fade" id="paymentModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius:16px;border:none;">
+            <div class="modal-header" style="border-bottom:1px solid var(--border);">
+                <h5 class="modal-title fw-bold"><i class="fas fa-credit-card me-2 text-primary"></i>Payment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3 p-3 rounded-3 text-center" style="background:var(--primary-light);">
+                    <div style="font-size:13px;color:var(--text-muted);font-weight:600;">AMOUNT DUE</div>
+                    <div style="font-size:32px;font-weight:800;color:var(--primary);" id="modalTotal">PKR 0.00</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Select Payment Method</label>
+                    <div class="payment-method-grid">
+                        <div class="payment-option selected" onclick="selectPayment('cash', this)">
+                            <i class="fas fa-money-bill-wave" style="color:#1a8a4a;"></i>
+                            <span>Cash</span>
+                        </div>
+                        <div class="payment-option" onclick="selectPayment('card', this)">
+                            <i class="fas fa-credit-card" style="color:#1565c0;"></i>
+                            <span>Card</span>
+                        </div>
+                        <div class="payment-option" onclick="selectPayment('jazzcash', this)">
+                            <i class="fas fa-mobile-alt" style="color:#9a6700;"></i>
+                            <span>JazzCash</span>
+                        </div>
+                        <div class="payment-option" onclick="selectPayment('easypaisa', this)">
+                            <i class="fas fa-wallet" style="color:#2d6a4f;"></i>
+                            <span>EasyPaisa</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="cashFields">
+                    <div class="mb-2">
+                        <label class="form-label">Amount Received (PKR)</label>
+                        <input type="number" id="amountPaid" class="form-control" placeholder="0.00" oninput="calcChange()">
+                    </div>
+                    <div class="p-3 rounded-3 d-flex justify-content-between" style="background:var(--bg);font-weight:700;">
+                        <span>Change</span><span id="changeDisplay" style="color:var(--primary);">PKR 0.00</span>
+                    </div>
+                </div>
+                <div class="mb-3 mt-3">
+                    <label class="form-label">Notes (optional)</label>
+                    <input type="text" id="saleNotes" class="form-control" placeholder="Add any notes...">
+                </div>
+            </div>
+            <div class="modal-footer" style="border-top:1px solid var(--border);">
+                <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary px-4" onclick="processPayment()"><i class="fas fa-check me-1"></i>Complete Sale</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius:16px;border:none;text-align:center;">
+            <div class="modal-body p-5">
+                <div style="font-size:60px;color:var(--success);margin-bottom:16px;">✓</div>
+                <h4 class="fw-bold mb-2">Sale Completed!</h4>
+                <p class="text-muted mb-1" id="successInvoice"></p>
+                <p class="text-muted mb-3" id="successChange"></p>
+                <div class="d-flex gap-2 justify-content-center">
+                    <a id="viewInvoiceBtn" href="#" class="btn btn-outline-primary" target="_blank"><i class="fas fa-print me-1"></i>Print Invoice</a>
+                    <button class="btn btn-primary" onclick="newSale()"><i class="fas fa-plus me-1"></i>New Sale</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let cart = [];
+let allProducts = [];
+let selectedCategory = '';
+let selectedPayment = 'cash';
+let paymentModal, successModal;
+
+document.addEventListener('DOMContentLoaded', () => {
+    paymentModal = new bootstrap.Modal(document.getElementById('paymentModal'));
+    successModal = new bootstrap.Modal(document.getElementById('successModal'));
+    loadProducts();
+});
+
+async function loadProducts() {
+    const search = document.getElementById('searchInput').value;
+    const url = `/api/products?category=${selectedCategory}&search=${encodeURIComponent(search)}`;
+    const res = await fetch(url);
+    allProducts = await res.json();
+    renderProducts(allProducts);
+}
+
+function renderProducts(products) {
+    const grid = document.getElementById('productGrid');
+    if (!products.length) {
+        grid.innerHTML = '<div class="no-products"><i class="fas fa-box-open" style="font-size:32px;opacity:0.3;"></i><br>No products found</div>';
+        return;
+    }
+    grid.innerHTML = products.map(p => `
+        <div class="product-card" onclick="addToCart(${p.id}, '${escH(p.name)}', ${p.price}, ${p.stock_quantity})">
+            <div class="pname">${escH(p.name)}</div>
+            <div class="psku">${escH(p.sku)}</div>
+            <div class="pprice">PKR ${parseFloat(p.price).toFixed(2)}</div>
+            <div class="pstock ${p.stock_quantity <= 5 ? 'stock-low' : 'stock-ok'}">
+                <i class="fas fa-cubes" style="font-size:10px;"></i> ${p.stock_quantity} in stock
+            </div>
+        </div>`).join('');
+}
+
+function escH(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function filterCategory(catId, el) {
+    selectedCategory = catId;
+    document.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    loadProducts();
+}
+
+let searchTimer;
+function filterProducts() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(loadProducts, 300);
+}
+
+function addToCart(id, name, price, stock) {
+    const existing = cart.find(i => i.id === id);
+    if (existing) {
+        if (existing.qty >= stock) { alert('No more stock available!'); return; }
+        existing.qty++;
+    } else {
+        cart.push({id, name, price: parseFloat(price), qty: 1, maxQty: stock});
+    }
+    renderCart();
+}
+
+function changeQty(id, delta) {
+    const item = cart.find(i => i.id === id);
+    if (!item) return;
+    item.qty += delta;
+    if (item.qty <= 0) cart = cart.filter(i => i.id !== id);
+    else if (item.qty > item.maxQty) { item.qty = item.maxQty; alert('Max stock reached!'); }
+    renderCart();
+}
+
+function removeFromCart(id) {
+    cart = cart.filter(i => i.id !== id);
+    renderCart();
+}
+
+function clearCart() {
+    cart = [];
+    renderCart();
+}
+
+function renderCart() {
+    const container = document.getElementById('cartItems');
+    if (!cart.length) {
+        container.innerHTML = '<div class="cart-empty"><i class="fas fa-cart-shopping"></i><br>Cart is empty<br><small>Click products to add them</small></div>';
+        document.getElementById('checkoutBtn').disabled = true;
+        updateTotals();
+        return;
+    }
+    container.innerHTML = cart.map(item => `
+        <div class="cart-item">
+            <div class="flex-1">
+                <div class="cart-item-name">${escH(item.name)}</div>
+                <div class="cart-item-price">PKR ${item.price.toFixed(2)} each</div>
+            </div>
+            <div class="cart-qty">
+                <div class="qty-btn" onclick="changeQty(${item.id}, -1)">−</div>
+                <div class="qty-val">${item.qty}</div>
+                <div class="qty-btn" onclick="changeQty(${item.id}, 1)">+</div>
+            </div>
+            <div class="cart-item-total">PKR ${(item.price * item.qty).toFixed(2)}</div>
+            <div class="cart-remove" onclick="removeFromCart(${item.id})"><i class="fas fa-xmark"></i></div>
+        </div>`).join('');
+    document.getElementById('checkoutBtn').disabled = false;
+    updateTotals();
+}
+
+function updateTotals() {
+    const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+    const discount = parseFloat(document.getElementById('discountInput').value) || 0;
+    const taxRate = parseFloat(document.getElementById('taxSelect').value) || 0;
+    const tax = (subtotal) * taxRate / 100;
+    const total = Math.max(0, subtotal - discount + tax);
+    document.getElementById('subtotalDisplay').textContent = `PKR ${subtotal.toFixed(2)}`;
+    document.getElementById('taxDisplay').textContent = `PKR ${tax.toFixed(2)}`;
+    document.getElementById('totalDisplay').textContent = `PKR ${total.toFixed(2)}`;
+    document.getElementById('modalTotal').textContent = `PKR ${total.toFixed(2)}`;
+    calcChange();
+}
+
+function calcChange() {
+    const total = parseFloat(document.getElementById('totalDisplay').textContent.replace('PKR ','')) || 0;
+    const paid = parseFloat(document.getElementById('amountPaid').value) || 0;
+    const change = Math.max(0, paid - total);
+    document.getElementById('changeDisplay').textContent = `PKR ${change.toFixed(2)}`;
+}
+
+function openPayment() {
+    if (!cart.length) return;
+    updateTotals();
+    document.getElementById('amountPaid').value = '';
+    document.getElementById('changeDisplay').textContent = 'PKR 0.00';
+    document.getElementById('saleNotes').value = '';
+    paymentModal.show();
+}
+
+function selectPayment(method, el) {
+    selectedPayment = method;
+    document.querySelectorAll('.payment-option').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('cashFields').style.display = method === 'cash' ? 'block' : 'none';
+}
+
+async function processPayment() {
+    const total = parseFloat(document.getElementById('totalDisplay').textContent.replace('PKR ','')) || 0;
+    const amountPaid = selectedPayment === 'cash'
+        ? parseFloat(document.getElementById('amountPaid').value) || 0
+        : total;
+    if (selectedPayment === 'cash' && amountPaid < total) {
+        alert('Amount received is less than total!'); return;
+    }
+    const discount = parseFloat(document.getElementById('discountInput').value) || 0;
+    const taxRate = parseFloat(document.getElementById('taxSelect').value) || 0;
+    const payload = {
+        items: cart.map(i => ({id: i.id, name: i.name, price: i.price, qty: i.qty})),
+        payment_method: selectedPayment, discount, tax_rate: taxRate,
+        amount_paid: amountPaid, notes: document.getElementById('saleNotes').value
+    };
+    try {
+        const res = await fetch('/api/checkout', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+        const data = await res.json();
+        if (data.success) {
+            paymentModal.hide();
+            document.getElementById('successInvoice').textContent = `Invoice: ${data.invoice_number}`;
+            document.getElementById('successChange').textContent = selectedPayment === 'cash' ? `Change: PKR ${data.change.toFixed(2)}` : 'Payment confirmed';
+            document.getElementById('viewInvoiceBtn').href = `/invoice/${data.sale_id}`;
+            successModal.show();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    } catch(e) { alert('Network error. Please try again.'); }
+}
+
+function newSale() {
+    successModal.hide();
+    cart = [];
+    document.getElementById('discountInput').value = 0;
+    document.getElementById('taxSelect').value = 0;
+    renderCart();
+    loadProducts();
+}
+</script>
+{% endblock %}

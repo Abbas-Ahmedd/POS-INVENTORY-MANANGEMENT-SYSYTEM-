@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+{% block title %}Reports{% endblock %}
+{% block page_title %}Reports & Analytics{% endblock %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+{% block content %}
+<!-- Summary -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-4">
+        <div class="stat-card"><div class="stat-icon purple"><i class="fas fa-calendar-day"></i></div>
+        <div><div class="stat-value">PKR {{ "%.0f"|format(today_total.total) }}</div><div class="stat-label">Today's Revenue</div></div></div>
+    </div>
+    <div class="col-sm-4">
+        <div class="stat-card"><div class="stat-icon green"><i class="fas fa-calendar"></i></div>
+        <div><div class="stat-value">PKR {{ "%.0f"|format(monthly_total.total) }}</div><div class="stat-label">This Month</div></div></div>
+    </div>
+    <div class="col-sm-4">
+        <div class="stat-card"><div class="stat-icon blue"><i class="fas fa-receipt"></i></div>
+        <div><div class="stat-value">{{ total_txns.cnt }}</div><div class="stat-label">Total Transactions</div></div></div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <!-- Monthly Revenue Chart -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header"><i class="fas fa-chart-line me-2 text-primary"></i>Monthly Revenue (This Month)</div>
+            <div class="card-body p-3">
+                <canvas id="monthlyChart" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+    <!-- Payment Breakdown -->
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header"><i class="fas fa-chart-pie me-2 text-primary"></i>Payment Methods</div>
+            <div class="card-body p-3">
+                <canvas id="paymentChart"></canvas>
+                <div class="mt-3">
+                    {% for p in payment_breakdown %}
+                    <div class="d-flex justify-content-between mb-2" style="font-size:13px;">
+                        <span><span class="badge badge-{{ p.payment_method }} me-1">{{ p.payment_method|upper }}</span></span>
+                        <span class="fw-bold">{{ p.cnt }} sales — PKR {{ "%.0f"|format(p.revenue) }}</span>
+                    </div>
+                    {% else %}<p class="text-muted text-center">No data</p>{% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <!-- Top Products -->
+    <div class="col-lg-6">
+        <div class="table-card">
+            <div class="card-header"><i class="fas fa-trophy me-2 text-primary"></i>Top Selling Products</div>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead><tr><th>#</th><th>Product</th><th>SKU</th><th>Units</th><th>Revenue</th></tr></thead>
+                    <tbody>
+                    {% for i, p in enumerate(top_products, 1) %}
+                    <tr>
+                        <td><span style="font-weight:800;color:{% if i==1 %}#ffd700{% elif i==2 %}#c0c0c0{% elif i==3 %}#cd7f32{% else %}var(--text-muted){% endif %}">{{ i }}</span></td>
+                        <td style="font-weight:600;">{{ p.name }}</td>
+                        <td class="mono" style="font-size:12px;">{{ p.sku }}</td>
+                        <td><span class="badge" style="background:var(--primary-light);color:var(--primary);">{{ p.units_sold }}</span></td>
+                        <td style="font-weight:700;">PKR {{ "%.0f"|format(p.revenue) }}</td>
+                    </tr>
+                    {% else %}<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-muted);">No sales data</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <!-- Inventory Status -->
+    <div class="col-lg-6">
+        <div class="table-card">
+            <div class="card-header"><i class="fas fa-warehouse me-2 text-primary"></i>Inventory Status</div>
+            <div class="table-responsive" style="max-height:350px;overflow-y:auto;">
+                <table class="table">
+                    <thead><tr><th>Product</th><th>Category</th><th>Stock</th><th>Status</th></tr></thead>
+                    <tbody>
+                    {% for p in inventory_status %}
+                    <tr>
+                        <td style="font-size:13px;font-weight:600;">{{ p.name }}</td>
+                        <td style="font-size:12px;color:var(--text-muted);">{{ p.category_name or '—' }}</td>
+                        <td style="font-weight:700;">{{ p.stock_quantity }}</td>
+                        <td>
+                            {% if p.stock_status == 'out_of_stock' %}<span class="stock-out"><i class="fas fa-xmark me-1"></i>Out</span>
+                            {% elif p.stock_status == 'low' %}<span class="stock-low"><i class="fas fa-triangle-exclamation me-1"></i>Low</span>
+                            {% else %}<span class="stock-ok"><i class="fas fa-check me-1"></i>OK</span>{% endif %}
+                        </td>
+                    </tr>
+                    {% else %}<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted);">No products</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const monthlyLabels = {{ monthly_data|map(attribute='day')|list|tojson }};
+const monthlyRevenue = {{ monthly_data|map(attribute='revenue')|list|tojson }};
+
+if (monthlyLabels.length) {
+    new Chart(document.getElementById('monthlyChart').getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: monthlyLabels,
+            datasets: [{
+                label: 'Revenue', data: monthlyRevenue,
+                borderColor: '#6c47ff', backgroundColor: 'rgba(108,71,255,0.1)',
+                fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#6c47ff'
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true }, x: { grid: { display: false } } } }
+    });
+}
+
+const paymentData = {{ payment_breakdown|tojson }};
+if (paymentData.length) {
+    new Chart(document.getElementById('paymentChart').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: paymentData.map(p => p.payment_method.toUpperCase()),
+            datasets: [{ data: paymentData.map(p => p.cnt), backgroundColor: ['#2ed573','#1e90ff','#ffa502','#6c47ff'], borderWidth: 0 }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 12 } } } }, cutout: '65%' }
+    });
+}
+</script>
+{% endblock %}

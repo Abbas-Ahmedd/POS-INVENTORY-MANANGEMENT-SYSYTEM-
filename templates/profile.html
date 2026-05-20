@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}My Profile{% endblock %}
+{% block page_title %}My Profile{% endblock %}
+{% block content %}
+<div style="max-width:600px;">
+    <div class="card">
+        <div class="card-header"><i class="fas fa-user-circle me-2 text-primary"></i>Profile Settings</div>
+        <div class="card-body p-4">
+            <div class="d-flex align-items-center gap-3 mb-4 p-3 rounded-3" style="background:var(--bg);">
+                <div class="user-avatar" style="width:56px;height:56px;font-size:22px;">{{ session.full_name[0].upper() }}</div>
+                <div>
+                    <div style="font-weight:700;font-size:16px;">{{ user.full_name }}</div>
+                    <div style="font-size:13px;color:var(--text-muted);">@{{ user.username }}</div>
+                    <span class="badge badge-{{ user.role }}">{{ user.role|capitalize }}</span>
+                </div>
+            </div>
+            <form method="POST">
+                <div class="mb-3">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" name="full_name" class="form-control" value="{{ user.full_name }}" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Username</label>
+                    <input type="text" class="form-control" value="{{ user.username }}" disabled style="opacity:0.6;">
+                </div>
+                <hr>
+                <p class="text-muted" style="font-size:13px;"><i class="fas fa-lock me-1"></i>Leave password fields blank to keep current password</p>
+                <div class="mb-3">
+                    <label class="form-label">Current Password</label>
+                    <input type="password" name="current_password" class="form-control" placeholder="Enter current password">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">New Password</label>
+                    <input type="password" name="new_password" class="form-control" placeholder="Enter new password" minlength="6">
+                </div>
+                <div class="d-flex gap-2 pt-2">
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Save Changes</button>
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

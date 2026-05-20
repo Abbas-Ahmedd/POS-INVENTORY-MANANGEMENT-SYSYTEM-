@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+{% block content %}
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-icon purple"><i class="fas fa-dollar-sign"></i></div>
+            <div>
+                <div class="stat-value">PKR {{ "%.0f"|format(today_stats.revenue) }}</div>
+                <div class="stat-label">Today's Revenue</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-icon green"><i class="fas fa-receipt"></i></div>
+            <div>
+                <div class="stat-value">{{ today_stats.cnt }}</div>
+                <div class="stat-label">Today's Sales</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-icon orange"><i class="fas fa-boxes-stacked"></i></div>
+            <div>
+                <div class="stat-value">{{ product_count.cnt }}</div>
+                <div class="stat-label">Total Products</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-icon blue"><i class="fas fa-users"></i></div>
+            <div>
+                <div class="stat-value">{{ user_count.cnt }}</div>
+                <div class="stat-label">Active Users</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <span><i class="fas fa-chart-line me-2 text-primary"></i>Weekly Revenue</span>
+                <small class="text-muted">Last 7 days</small>
+            </div>
+            <div class="card-body p-3">
+                <canvas id="revenueChart" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header"><i class="fas fa-star me-2 text-primary"></i>Top Products</div>
+            <div class="card-body p-0">
+                {% if top_products %}
+                <ul class="list-group list-group-flush">
+                    {% for p in top_products %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-4" style="font-size:13px;font-weight:600;">
+                        <span>{{ p.name }}</span>
+                        <span class="badge" style="background:var(--primary-light);color:var(--primary);">{{ p.sold }} sold</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div style="text-align:center;padding:30px;color:var(--text-muted);font-size:13px;">No sales data yet</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="table-card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="fas fa-clock-rotate-left me-2 text-primary"></i>Recent Transactions</span>
+        <a href="{{ url_for('sales') }}" class="btn btn-sm btn-outline-primary">View All</a>
+    </div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead><tr>
+                <th>Invoice</th><th>Cashier</th><th>Payment</th><th>Items</th><th>Total</th><th>Time</th><th>Status</th>
+            </tr></thead>
+            <tbody>
+            {% for s in recent_sales %}
+            <tr>
+                <td><a href="{{ url_for('invoice', sale_id=s.id) }}" class="mono" style="color:var(--primary);font-size:12px;">{{ s.invoice_number }}</a></td>
+                <td>{{ s.cashier_name }}</td>
+                <td><span class="badge badge-{{ s.payment_method }}">{{ s.payment_method|upper }}</span></td>
+                <td>—</td>
+                <td style="font-weight:700;">PKR {{ "%.0f"|format(s.total) }}</td>
+                <td style="font-size:12px;color:var(--text-muted);">{{ s.created_at.strftime('%H:%M') }}</td>
+                <td><span class="badge badge-{{ s.status }}">{{ s.status|capitalize }}</span></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted);">No transactions yet</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const ctx = document.getElementById('revenueChart').getContext('2d');
+new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: {{ weekly|map(attribute='date')|list|tojson }},
+        datasets: [{
+            label: 'Revenue (PKR)',
+            data: {{ weekly|map(attribute='revenue')|list|tojson }},
+            backgroundColor: 'rgba(108,71,255,0.15)',
+            borderColor: '#6c47ff',
+            borderWidth: 2,
+            borderRadius: 8,
+            borderSkipped: false,
+        }]
+    },
+    options: {
+        responsive: true, plugins: { legend: { display: false } },
+        scales: {
+            y: { beginAtZero: true, grid: { color: '#f0f0f5' }, ticks: { color: '#6b6b80', font: { size: 11 } } },
+            x: { grid: { display: false }, ticks: { color: '#6b6b80', font: { size: 12 } } }
+        }
+    }
+});
+</script>
+{% endblock %}
