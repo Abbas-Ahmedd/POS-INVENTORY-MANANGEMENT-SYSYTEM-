@@ -1,4 +1,4 @@
-# NexaPOS — Point of Sale & Inventory Management System
+# SpectrePOS — Point of Sale & Inventory Management System
 
 ## Group Number
 **Group 14** 
